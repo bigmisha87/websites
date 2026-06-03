@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MISHA Graphics · ששת העיצובים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;800&family=Rubik:wght@400;600;800;900&family=Secular+One&family=IBM+Plex+Sans+Hebrew:wght@300;500;700&family=Alef:wght@400;700&family=Noto+Sans+Hebrew:wght@300;600;800&family=Karantina:wght@400;700&family=Varela+Round&family=Heebo:wght@200;400;700;900&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Assistant',sans-serif; background:#0a0a0d; color:#f3f0e9; min-height:100vh; overflow-x:hidden}
+  .top{text-align:center; padding:clamp(38px,7vh,72px) 20px clamp(20px,3vh,34px)}
+  .top .logo{height:clamp(64px,10vw,104px); mix-blend-mode:screen}
+  .top p{color:#9a978f; margin-top:16px; font-size:clamp(15px,1.6vw,19px); font-weight:300}
+  .top p b{color:#f3f0e9; font-weight:600}
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:2px; background:#26262b; border-top:2px solid #26262b; border-bottom:2px solid #26262b}
+  .panel{position:relative; min-height:48vh; padding:clamp(24px,2.6vw,40px); text-decoration:none; display:flex; flex-direction:column; justify-content:space-between; overflow:hidden; transition:.4s; cursor:pointer}
+  .panel .n{font-size:12px; font-weight:800; letter-spacing:.22em; text-transform:uppercase; opacity:.6}
+  .panel .mid h2{line-height:1.04; margin-bottom:12px}
+  .panel .mid p{font-size:14px; line-height:1.55; opacity:.72; max-width:30ch}
+  .panel .font{font-size:11px; letter-spacing:.16em; text-transform:uppercase; opacity:.55; margin-top:14px}
+  .panel .cta{display:inline-flex; align-items:center; gap:8px; font-weight:700; font-size:15px; transition:gap .3s}
+  .panel:hover .cta{gap:15px}
+
+  .p1{background:#f4f1ea; color:#1a1714}
+  .p1 h2{font-family:'Assistant'; font-weight:800; font-size:clamp(26px,2.6vw,38px); letter-spacing:-.02em}
+  .p1 .font{color:#8a7f6f} .p1:hover{background:#fff}
+  .p2{background:#f1ede6; color:#191613}
+  .p2 h2{font-family:'Rubik'; font-weight:900; font-size:clamp(26px,2.6vw,40px); letter-spacing:-.02em}
+  .p2 .accent{background:linear-gradient(105deg,#1DB954,#E5418F); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .p2 .font{color:#8a8175} .p2:hover{background:#fff}
+  .p3{background:#0c0c0d; color:#f3f0e9}
+  .p3 h2{font-family:'Secular One'; font-size:clamp(26px,2.7vw,42px)}
+  .p3 .acid{color:#e9ff3d} .p3 .font{color:#7d7a72} .p3:hover{background:#161618}
+  .p3 .n,.p3 .cta{color:#e9ff3d}
+  .p4{background:linear-gradient(150deg,#eef1fb,#f6eef6 55%,#eef6f4); color:#181826}
+  .p4 h2{font-family:'IBM Plex Sans Hebrew'; font-weight:600; font-size:clamp(26px,2.6vw,40px); letter-spacing:-.02em}
+  .p4 .gold{background:linear-gradient(110deg,#2f6bff,#9b5cff,#ff5ca8); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .p4 .font{color:#7a7d92} .p4:hover{filter:brightness(1.04)} .p4 .n,.p4 .cta{color:#2f6bff}
+  .p5{background:#080a1c; color:#eef0ff}
+  .p5 h2{font-family:'Alef'; font-weight:700; font-size:clamp(26px,2.6vw,40px)}
+  .p5 .grad{background:linear-gradient(100deg,#56d8ff,#b072ff,#ff6cae); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .p5 .font{color:#9698c6} .p5:hover{background:#10122e} .p5 .n,.p5 .cta{color:#56d8ff}
+  .p6{background:#f1ede5; color:#17150f}
+  .p6 h2{font-family:'Noto Sans Hebrew'; font-weight:800; font-size:clamp(26px,2.6vw,40px); letter-spacing:-.02em}
+  .p6 em{font-style:normal; color:#1f5d4f}
+  .p6 .font{color:#7d7567} .p6:hover{background:#faf7f1} .p6 .n,.p6 .cta{color:#1f5d4f}
+  .p7{background:#f0efe9; color:#0c0c0c}
+  .p7 h2{font-family:'Karantina'; font-weight:700; font-size:clamp(30px,3vw,48px); line-height:.85}
+  .p7 .accent{color:#2222ff} .p7 .font{color:#6a6a64} .p7:hover{background:#fff} .p7 .n,.p7 .cta{color:#2222ff}
+  .p8{background:#f1e7d0; color:#211d18}
+  .p8 h2{font-family:'Varela Round'; font-weight:400; font-size:clamp(26px,2.6vw,40px); letter-spacing:-.01em}
+  .p8 .blue{color:#2b3df0} .p8 .pink{color:#ff3e7f} .p8 .font{color:#7c7158} .p8:hover{background:#e9dcc0} .p8 .n,.p8 .cta{color:#ff3e7f}
+  .p9{background:#0a0a0b; color:#f3f1ec}
+  .p9 h2{font-family:'Heebo'; font-weight:200; font-size:clamp(26px,2.6vw,42px); letter-spacing:-.02em}
+  .p9 h2 b{font-weight:700} .p9 .amber{color:#ffb24a} .p9 .font{color:#8d8a83} .p9:hover{background:#121214} .p9 .n,.p9 .cta{color:#ffb24a}
+
+  .foot{text-align:center; padding:clamp(24px,4vh,46px) 20px; color:#7d7a72; font-size:14px; font-weight:300}
+  .foot .em{font-family:'Secular One'; color:#9a978f; font-size:13px; letter-spacing:.05em}
+
+  @media(max-width:1000px){ .grid{grid-template-columns:repeat(2,1fr)} }
+  @media(max-width:620px){ .grid{grid-template-columns:1fr} .panel{min-height:38vh} }
+</style>
+</head>
+<body>
+  <div class="top">
+    <img class="logo" src="assets/logo-white.png" alt="MISHA Graphics">
+    <p>תיק עבודות · ארט דיירקשן &nbsp;·&nbsp; <b>תשעה כיוונים עיצוביים</b> לבחירתך</p>
+  </div>
+
+  <div class="grid">
+    <a class="panel p1" href="design-1-gallery.html" data-screen-label="עיצוב 1">
+      <span class="n">עיצוב 01</span>
+      <div class="mid"><h2>גלריה<br>מינימליסטית</h2><p>לבן נקי, טיפוגרפיה גדולה, לוגואי מותגים מובילים אל כל קמפיין.</p><div class="font">Assistant</div></div>
+      <span class="cta">לכניסה ←</span>
+    </a>
+    <a class="panel p2" href="design-2-poster.html" data-screen-label="עיצוב 2">
+      <span class="n">עיצוב 02</span>
+      <div class="mid"><h2>קיר<br><span class="accent">פוסטרים</span></h2><p>קלפים צבעוניים, רקעים מובחנים ותנועה משחקית. חי ואנרגטי.</p><div class="font">Rubik</div></div>
+      <span class="cta">לכניסה ←</span>
+    </a>
+    <a class="panel p3" href="design-3-brutalist.html" data-screen-label="עיצוב 3">
+      <span class="n">עיצוב 03</span>
+      <div class="mid"><h2>סטודיו<br><span class="acid">ברוטליסטי</span></h2><p>שחור, פונטים ענקיים, פרלקס ואנרגיה של סטודיו פרסום נועז.</p><div class="font">Secular One</div></div>
+      <span class="cta">לכניסה ←</span>
+    </a>
+    <a class="panel p4" href="design-4-lab.html" data-screen-label="עיצוב 4">
+      <span class="n">עיצוב 04</span>
+      <div class="mid"><h2>אפקט<br><span class="gold">זכוכית</span></h2><p>זכוכית נוזלית בהשראת Apple — המודעות במלואן, צ׳יפ זכוכית שקוף ולוגו מעל.</p><div class="font">IBM Plex Sans Hebrew</div></div>
+      <span class="cta">לכניסה ←</span>
+    </a>
+    <a class="panel p5" href="design-5-particles.html" data-screen-label="עיצוב 5">
+      <span class="n">עיצוב 05</span>
+      <div class="mid"><h2>חלקיקים<br><span class="grad">בתנועה</span></h2><p>שדה חלקיקים אינטראקטיבי שמגיב לעכבר, אינדיגו עמוק וזוהר.</p><div class="font">Alef</div></div>
+      <span class="cta">לכניסה ←</span>
+    </a>
+    <a class="panel p6" href="design-6-luxe.html" data-screen-label="עיצוב 6">
+      <span class="n">עיצוב 06</span>
+      <div class="mid"><h2>יוקרה<br><em>מודרנית</em></h2><p>עריכתי עשיר וצפוף, אקצנט אמרלד, מתוחכם ובלי שטח ריק.</p><div class="font">Noto Sans Hebrew</div></div>
+      <span class="cta">לכניסה ←</span>
+    </a>
+    <a class="panel p7" href="design-7-kinetic.html" data-screen-label="עיצוב 7">
+      <span class="n">עיצוב 07</span>
+      <div class="mid"><h2>טיפוגרפיה<br><span class="accent">קינטית</span></h2><p>טיפוגרפיה ענקית ומונפשת, מילים מתחלפות ורשימה שמגיבה לעכבר.</p><div class="font">Karantina</div></div>
+      <span class="cta">לכניסה ←</span>
+    </a>
+    <a class="panel p8" href="design-8-riso.html" data-screen-label="עיצוב 8">
+      <span class="n">עיצוב 08</span>
+      <div class="mid"><h2>הדפס<br><span class="blue">ריזו</span><span class="pink">גרף</span></h2><p>אסתטיקת זין אנלוגית — דואוטון, הלפטון, גרעיניות ומדבקות.</p><div class="font">Varela Round</div></div>
+      <span class="cta">לכניסה ←</span>
+    </a>
+    <a class="panel p9" href="design-9-cinema.html" data-screen-label="עיצוב 9">
+      <span class="n">עיצוב 09</span>
+      <div class="mid"><h2>חוויה<br><span class="amber">קולנועית</span></h2><p>גלריה אופקית מלאת-מסך, סמן מותאם ואווירת קולנוע כהה.</p><div class="font">Heebo</div></div>
+      <span class="cta">לכניסה ←</span>
+    </a>
+  </div>
+
+  <div class="foot"><p class="em">נבנה עם קפה, פאניקה לפני הגשות, וכמות לא בריאה של שכבות בפוטושופ.</p></div>
+</body>
+</html>

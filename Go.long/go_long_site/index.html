@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GO.LONG — Homepage Concepts</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Saira+Condensed:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0b0b0c;font-family:'Space Mono',monospace;color:#f3f2ee;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  .bar{display:flex;align-items:center;gap:0;height:54px;border-bottom:1px solid #2a2a2b;background:#08090a;flex-shrink:0;padding-right:18px}
+  .logo{display:flex;align-items:center;gap:8px;padding:0 22px;font-family:'Saira Condensed',sans-serif;font-weight:900;font-size:20px;letter-spacing:.02em;text-transform:uppercase;border-right:1px solid #2a2a2b;height:100%}
+  .logo .b{width:9px;height:14px;background:#d6ff14;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 36'%3E%3Cpath d='M14 0H4v14H0v8h4v14h6V22h4v-8h-4z M14 14h10v8H14z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 36'%3E%3Cpath d='M14 0H4v14H0v8h4v14h6V22h4v-8h-4z M14 14h10v8H14z'/%3E%3C/svg%3E") center/contain no-repeat}
+  .tabs{display:flex;height:100%}
+  .tab{display:flex;flex-direction:column;justify-content:center;gap:2px;padding:0 26px;height:100%;border-right:1px solid #2a2a2b;cursor:pointer;transition:.16s;background:transparent;color:#8c8c8c;text-align:left}
+  .tab:hover{background:#101012;color:#f3f2ee}
+  .tab .n{font-size:9px;letter-spacing:.16em}
+  .tab .t{font-family:'Saira Condensed',sans-serif;font-weight:700;font-size:16px;letter-spacing:.03em;text-transform:uppercase}
+  .tab.active{background:#d6ff14;color:#0b0b0c}
+  .tab.active .n{color:#0b0b0c;opacity:.7}
+  .spacer{flex:1}
+  .meta{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5e5e5e}
+  .meta b{color:#d6ff14}
+  iframe{flex:1;width:100%;border:none;background:#0b0b0c}
+  @media(max-width:760px){.tab{padding:0 14px}.tab .t{font-size:13px}.meta{display:none}}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="logo"><span class="b"></span>GO.LONG</div>
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-src="designs/01-editorial.html"><span class="n">CONCEPT 01</span><span class="t">Editorial</span></button>
+      <button class="tab" data-src="designs/02-terminal.html"><span class="n">CONCEPT 02</span><span class="t">Orbital Terminal</span></button>
+      <button class="tab" data-src="designs/03-drop.html"><span class="n">CONCEPT 03</span><span class="t">Kinetic Drop</span></button>
+    </div>
+    <div class="spacer"></div>
+    <div class="meta">HOMEPAGE CONCEPTS — <b>3 DIRECTIONS</b></div>
+  </div>
+  <iframe id="frame" src="designs/01-editorial.html" title="GO.LONG concept"></iframe>
+<script>
+  const tabs=[...document.querySelectorAll('.tab')];
+  const frame=document.getElementById('frame');
+  const KEY='golong-concept';
+  function select(src,el){
+    tabs.forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    frame.src=src;
+    localStorage.setItem(KEY,src);
+  }
+  tabs.forEach(t=>t.addEventListener('click',()=>select(t.dataset.src,t)));
+  const saved=localStorage.getItem(KEY);
+  if(saved){const m=tabs.find(t=>t.dataset.src===saved);if(m){select(saved,m);}}
+</script>
+</body>
+</html>
