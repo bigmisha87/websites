@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Marble Sorter — Galton Board Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%; height: 100%; overflow: hidden;
+            background: #0d0d0d; color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #app { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+        #controls {
+            flex-shrink: 0;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            padding: 12px 16px 14px;
+            border-bottom: 2px solid #0f3460;
+            overflow-x: auto; -webkit-overflow-scrolling: touch;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.25);
+            position: relative; z-index: 20;
+        }
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px 12px; max-width: 1120px; margin: 0 auto;
+        }
+        .control-section {
+            min-width: 0; border: 1px solid rgba(122,139,166,0.18);
+            border-radius: 8px; background: rgba(8,17,35,0.34);
+        }
+        .control-section[open] { grid-column: 1 / -1; }
+        .control-section summary {
+            padding: 8px 10px; cursor: pointer; list-style: none;
+            color: #b4c1d6; font-size: 11px; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.9px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .control-section summary::-webkit-details-marker { display: none; }
+        .control-section summary::after { content: '+'; color: #e94560; font-size: 16px; }
+        .control-section[open] summary::after { content: '\2212'; }
+        .summary-hint { color: #566781; font-size: 9px; font-weight: 600; letter-spacing: 0.3px; }
+        .section-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+            gap: 10px 12px; padding: 9px 10px 11px;
+            border-top: 1px solid rgba(122,139,166,0.12);
+        }
+        .control-group {
+            display: flex; flex-direction: column; gap: 5px;
+            min-width: 0;
+        }
+        .control-group label {
+            font-size: 10px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.8px; color: #7a8ba6;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .value-display { color: #e94560; font-weight: 700; font-size: 11px; }
+
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; height: 6px; border-radius: 3px;
+            background: #0f3460; outline: none; cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: #e94560; border: 2px solid #fff;
+            cursor: pointer; transition: transform 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type="range"]::-moz-range-thumb {
+            width: 18px; height: 18px; border-radius: 50%;
+            background: #e94560; border: 2px solid #fff; cursor: pointer;
+        }
+
+        select, input[type="number"] {
+            width: 100%; padding: 5px 8px; border-radius: 5px;
+            border: 1px solid #0f3460; background: #0f3460;
+            color: #e0e0e0; font-size: 12px; outline: none;
+            transition: border-color 0.2s;
+        }
+        select { cursor: pointer; }
+        select:hover, select:focus { border-color: #e94560; }
+
+        .button-row {
+            grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px;
+        }
+        .btn {
+            flex: 1; padding: 9px 16px; border: none; border-radius: 6px;
+            font-size: 13px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; cursor: pointer; transition: all 0.2s ease;
+            min-width: 150px;
+        }
+        .btn:active { transform: scale(0.97); }
+        #dropBtn {
+            background: linear-gradient(135deg, #e94560, #c23152); color: #fff;
+        }
+        #dropBtn:hover {
+            background: linear-gradient(135deg, #ff6b81, #e94560);
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.4);
+        }
+        #dropBtn:disabled { background: #444; color: #777; cursor: not-allowed; box-shadow: none; }
+        #freezeBtn {
+            background: linear-gradient(135deg, #f0a500, #d17f00); color: #171717;
+        }
+        #freezeBtn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #ffc247, #f0a500);
+            box-shadow: 0 0 18px rgba(240,165,0,0.25);
+        }
+        #freezeBtn.is-paused {
+            background: linear-gradient(135deg, #00b894, #008f72); color: #fff;
+        }
+        #freezeBtn:disabled { background: #333b4d; color: #687086; cursor: not-allowed; }
+        #addBtn {
+            background: linear-gradient(135deg, #2979ff, #1659c7); color: #fff;
+        }
+        #addBtn:hover:not(:disabled) { box-shadow: 0 0 18px rgba(41,121,255,0.3); }
+        #addBtn:disabled { background: #333b4d; color: #687086; cursor: not-allowed; }
+        #loadBtn {
+            background: linear-gradient(135deg, #7c4dff, #5735b8); color: #fff;
+        }
+        #loadBtn:hover:not(:disabled) { box-shadow: 0 0 18px rgba(124,77,255,0.3); }
+        #loadBtn:disabled { background: #333b4d; color: #687086; cursor: not-allowed; }
+        #resetBtn {
+            background: linear-gradient(135deg, #0f3460, #1a1a40);
+            color: #7a8ba6; border: 1px solid #0f3460;
+        }
+        #resetBtn:hover {
+            background: linear-gradient(135deg, #1a5276, #0f3460); color: #e0e0e0;
+        }
+        #compactBtn { background: #252d44; color: #9eabc0; }
+        #designWarning {
+            grid-column: 1 / -1; display: none; color: #ffc247;
+            background: rgba(240,165,0,0.09); border: 1px solid rgba(240,165,0,0.28);
+            border-radius: 6px; padding: 7px 10px; font-size: 11px;
+        }
+        #designWarning.is-visible { display: block; }
+        .btn:focus-visible, input:focus-visible, select:focus-visible {
+            outline: 2px solid #fff; outline-offset: 2px;
+        }
+
+        #canvas-container { flex: 1; position: relative; min-height: 0; overflow: hidden; background: #1a1a2e; display: flex; align-items: center; justify-content: center; }
+        #canvas-container canvas { display: block; flex: 0 0 auto; transform-origin: center center; }
+        #status {
+            position: absolute; top: 8px; right: 10px;
+            background: rgba(6,10,20,0.78); padding: 6px 11px 6px 25px;
+            border-radius: 12px; font-size: 11px; color: #7a8ba6;
+            pointer-events: none; z-index: 10; backdrop-filter: blur(6px);
+            border: 1px solid rgba(122,139,166,0.18);
+        }
+        #status span { color: #e94560; font-weight: 700; }
+        #status::before {
+            content: ''; position: absolute; left: 10px; top: 10px;
+            width: 7px; height: 7px; border-radius: 50%; background: #7a8ba6;
+            box-shadow: 0 0 8px currentColor;
+        }
+        #status[data-state="ready"]::before { background: #00e676; }
+        #status[data-state="running"]::before { background: #00b0ff; }
+        #status[data-state="paused"]::before { background: #f0a500; }
+        #loadingTrack {
+            display: none; width: 170px; height: 3px; margin-top: 5px;
+            border-radius: 2px; overflow: hidden; background: #14284a;
+        }
+        #status.is-loading #loadingTrack { display: block; }
+        #loadingBar { width: 0; height: 100%; background: #e94560; transition: width 0.08s linear; }
+        #showControlsBtn {
+            display: none; position: absolute; top: 10px; left: 10px; z-index: 15;
+            border: 1px solid rgba(122,139,166,0.35); background: rgba(6,10,20,0.78);
+            color: #d8dfeb; border-radius: 7px; padding: 7px 10px; cursor: pointer;
+        }
+        #app.compact-mode #controls { display: none; }
+        #app.compact-mode #showControlsBtn { display: block; }
+        /* Canvas is centered and scaled-to-fit via flex + JS transform (see fitCanvas). */
+
+        @media (max-width: 620px) {
+            #controls { padding: 9px 10px 11px; }
+            .controls-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .control-section[open] { grid-column: 1 / -1; }
+            .section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .button-row { flex-wrap: wrap; }
+            .button-row .btn { min-width: calc(50% - 4px); }
+            #dropBtn { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="controls">
+            <div class="controls-grid">
+                <details class="control-section">
+                    <summary>Marbles <span class="summary-hint">Count, size & seed</span></summary>
+                    <div class="section-grid">
+                <div class="control-group">
+                    <label for="presetSelect">Preset</label>
+                    <select id="presetSelect">
+                        <option value="custom">Custom</option>
+                        <option value="classic">Classic Galton</option>
+                        <option value="dense" selected>Dense Grid</option>
+                        <option value="high-bounce">High Bounce</option>
+                        <option value="slow-motion">Slow Motion</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="ballCount">Ball Count <span class="value-display" id="ballCountVal">2000</span></label>
+                    <input type="range" id="ballCount" min="10" max="5000" value="2000" step="10">
+                </div>
+                <div class="control-group">
+                    <label for="ballSize">Marble Size <span class="value-display" id="ballSizeVal">4</span></label>
+                    <input type="range" id="ballSize" min="3" max="8" value="4" step="1">
+                </div>
+                <div class="control-group">
+                    <label for="randomSeed">Random Seed</label>
+                    <input type="number" id="randomSeed" min="1" max="2147483647" value="2026" step="1">
+                </div>
+                    </div>
+                </details>
+                <details class="control-section" open>
+                    <summary>Board <span class="summary-hint">Pegs, bins & width</span></summary>
+                    <div class="section-grid">
+                <div class="control-group">
+                    <label for="binCount">Bin Count <span class="value-display" id="binCountVal">8</span></label>
+                    <input type="range" id="binCount" min="2" max="15" value="8" step="1">
+                </div>
+                <div class="control-group">
+                    <label for="binHeight">Bin Height <span class="value-display" id="binHeightVal">26%</span></label>
+                    <input type="range" id="binHeight" min="12" max="40" value="26" step="1">
+                </div>
+                <div class="control-group">
+                    <label for="pegRows">Peg Rows <span class="value-display" id="pegRowsVal">20</span></label>
+                    <input type="range" id="pegRows" min="3" max="20" value="20" step="1">
+                </div>
+                <div class="control-group">
+                    <label for="pegPerRow">Pegs / Row <span class="value-display" id="pegPerRowVal">30</span></label>
+                    <input type="range" id="pegPerRow" min="3" max="30" value="30" step="1">
+                </div>
+                <div class="control-group">
+                    <label for="pegSize">Peg Size <span class="value-display" id="pegSizeVal">6</span></label>
+                    <input type="range" id="pegSize" min="3" max="10" value="6" step="1">
+                </div>
+                <div class="control-group">
+                    <label for="simWidth">Sim Width <span class="value-display" id="simWidthVal">100%</span></label>
+                    <input type="range" id="simWidth" min="30" max="100" value="100" step="5">
+                </div>
+                    </div>
+                </details>
+                <details class="control-section">
+                    <summary>Physics <span class="summary-hint">Motion & collisions</span></summary>
+                    <div class="section-grid">
+                <div class="control-group">
+                    <label for="gravity">Gravity <span class="value-display" id="gravityVal">1.0×</span></label>
+                    <input type="range" id="gravity" min="0.1" max="2" value="1" step="0.1">
+                </div>
+                <div class="control-group">
+                    <label for="marbleBounce">Marble Bounce <span class="value-display" id="marbleBounceVal">15%</span></label>
+                    <input type="range" id="marbleBounce" min="0" max="1" value="0.15" step="0.05">
+                </div>
+                <div class="control-group">
+                    <label for="surfaceGrip">Surface Grip <span class="value-display" id="surfaceGripVal">40%</span></label>
+                    <input type="range" id="surfaceGrip" min="0" max="1" value="0.4" step="0.05">
+                </div>
+                <div class="control-group">
+                    <label for="airDrag">Air Drag <span class="value-display" id="airDragVal">1.0%</span></label>
+                    <input type="range" id="airDrag" min="0" max="0.1" value="0.01" step="0.005">
+                </div>
+                <div class="control-group">
+                    <label for="pegBounce">Peg Bounce <span class="value-display" id="pegBounceVal">60%</span></label>
+                    <input type="range" id="pegBounce" min="0" max="1" value="0.6" step="0.05">
+                </div>
+                <div class="control-group">
+                    <label for="simulationSpeed">Sim Speed <span class="value-display" id="simulationSpeedVal">1.0×</span></label>
+                    <input type="range" id="simulationSpeed" min="0.25" max="2" value="1" step="0.25">
+                </div>
+                <div class="control-group">
+                    <label for="antiStuck">Anti-Stuck</label>
+                    <select id="antiStuck">
+                        <option value="on" selected>On</option>
+                        <option value="off">Off</option>
+                    </select>
+                </div>
+                    </div>
+                </details>
+                <details class="control-section">
+                    <summary>Gate & Layout <span class="summary-hint">Shape and opening</span></summary>
+                    <div class="section-grid">
+                <div class="control-group">
+                    <label for="pegShape">Peg Shape</label>
+                    <select id="pegShape">
+                        <option value="circle" selected>Circle</option>
+                        <option value="diamond">Diamond</option>
+                        <option value="random">Random</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="pegLayout">Peg Layout</label>
+                    <select id="pegLayout">
+                        <option value="grid" selected>Grid (Staggered)</option>
+                        <option value="zigzag">Zigzag</option>
+                        <option value="random">Random</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="shelfBehavior">Shelf Opening</label>
+                    <select id="shelfBehavior">
+                        <option value="disappear">Disappear</option>
+                        <option value="slide-left">Slide Left</option>
+                        <option value="slide-right">Slide Right</option>
+                        <option value="split" selected>Split Gate</option>
+                    </select>
+                </div>
+                    </div>
+                </details>
+                <div class="button-row">
+                    <button class="btn" id="loadBtn">Load Balls</button>
+                    <button class="btn" id="dropBtn" disabled>Release</button>
+                    <button class="btn" id="addBtn" disabled>Add Batch (2000)</button>
+                    <button class="btn" id="resetBtn">New Run</button>
+                    <button class="btn" id="compactBtn">Focus View</button>
+                    <button class="btn" id="freezeBtn" disabled>Pause</button>
+                </div>
+                <div id="designWarning" role="status"></div>
+            </div>
+        </div>
+        <div id="canvas-container">
+            <button id="showControlsBtn">Show Controls</button>
+            <div id="status" data-state="loading">
+                <div><span id="simulationStatus" role="status" aria-live="polite">Loading</span> · Marbles <span id="marbleStatus">0</span></div>
+                <div id="loadingTrack"><div id="loadingBar"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var Engine    = Matter.Engine,
+            Bodies    = Matter.Bodies,
+            Composite = Matter.Composite,
+            Body      = Matter.Body,
+            Sleeping  = Matter.Sleeping,
+            Runner    = Matter.Runner;
+
+        var MARBLE_COLORS = [
+            '#ff1744','#f50057','#d500f9','#651fff',
+            '#2979ff','#00b0ff','#00e5ff','#1de9b6',
+            '#00e676','#76ff03','#ffea00','#ffc400',
+            '#ff9100','#ff3d00','#ff6e40','#e040fb'
+        ];
+        var PEG_SHAPES = ['circle','diamond'];
+
+        /* ═══ State ═══ */
+        var engine = null, runner = null, canvas = null, ctx = null, animId = null;
+        var marbles = [];
+        var gateLeft = null, gateRight = null;
+        var gateOpen = false;
+        var spawnTimer = null;
+        var previewTimer = null;
+        var spawnedCount = 0;
+        var targetMarbleCount = 0;
+        var spawnBatchStart = 0;
+        var activeMarbleRadius = 4;
+        var activeShelfMode = 'split';
+        var rngState = 2026;
+        var renderFrame = 0;
+        var binStats = [];
+        var activePhysics = {
+            gravity: 1,
+            marbleBounce: 0.15,
+            surfaceGrip: 0.4,
+            airDrag: 0.01,
+            pegBounce: 0.6,
+            simulationSpeed: 1,
+            antiStuck: true
+        };
+        var isDropping = false;
+        var simulationPaused = false;
+        // ── Fixed logical canvas size (absolute pixels — NOT tied to screen/window size).
+        //    Change these two numbers to resize the simulation; it always renders at this
+        //    exact size and is uniformly scaled DOWN only to fit smaller screens.
+        var FIXED_W = 1000, FIXED_H = 680;
+        var canvasW = 0, canvasH = 0;
+        var sim = { left:0, right:0, width:0, centerX:0 };
+        var binZoneInfo = null;
+        var spawnArea = null; // { left, right, top, bottom }
+
+        /* ═══ DOM ═══ */
+        var app          = document.getElementById('app');
+        var container    = document.getElementById('canvas-container');
+        var presetSelectEl = document.getElementById('presetSelect');
+        var randomSeedEl = document.getElementById('randomSeed');
+        var ballCountEl  = document.getElementById('ballCount');
+        var ballSizeEl   = document.getElementById('ballSize');
+        var binCountEl   = document.getElementById('binCount');
+        var binHeightEl  = document.getElementById('binHeight');
+        var pegRowsEl    = document.getElementById('pegRows');
+        var pegPerRowEl  = document.getElementById('pegPerRow');
+        var pegSizeEl    = document.getElementById('pegSize');
+        var simWidthEl   = document.getElementById('simWidth');
+        var gravityEl    = document.getElementById('gravity');
+        var marbleBounceEl = document.getElementById('marbleBounce');
+        var surfaceGripEl = document.getElementById('surfaceGrip');
+        var airDragEl    = document.getElementById('airDrag');
+        var pegBounceEl  = document.getElementById('pegBounce');
+        var simulationSpeedEl = document.getElementById('simulationSpeed');
+        var antiStuckEl  = document.getElementById('antiStuck');
+        var pegShapeEl   = document.getElementById('pegShape');
+        var pegLayoutEl  = document.getElementById('pegLayout');
+        var shelfBehaviorEl = document.getElementById('shelfBehavior');
+        var loadBtn      = document.getElementById('loadBtn');
+        var dropBtn      = document.getElementById('dropBtn');
+        var addBtn       = document.getElementById('addBtn');
+        var freezeBtn    = document.getElementById('freezeBtn');
+        var resetBtn     = document.getElementById('resetBtn');
+        var compactBtn   = document.getElementById('compactBtn');
+        var showControlsBtn = document.getElementById('showControlsBtn');
+        var ballCountVal = document.getElementById('ballCountVal');
+        var ballSizeVal  = document.getElementById('ballSizeVal');
+        var binCountVal  = document.getElementById('binCountVal');
+        var binHeightVal = document.getElementById('binHeightVal');
+        var pegRowsVal   = document.getElementById('pegRowsVal');
+        var pegPerRowVal = document.getElementById('pegPerRowVal');
+        var pegSizeVal   = document.getElementById('pegSizeVal');
+        var simWidthVal  = document.getElementById('simWidthVal');
+        var gravityVal   = document.getElementById('gravityVal');
+        var marbleBounceVal = document.getElementById('marbleBounceVal');
+        var surfaceGripVal = document.getElementById('surfaceGripVal');
+        var airDragVal   = document.getElementById('airDragVal');
+        var pegBounceVal = document.getElementById('pegBounceVal');
+        var simulationSpeedVal = document.getElementById('simulationSpeedVal');
+        var marbleStatus = document.getElementById('marbleStatus');
+        var simulationStatus = document.getElementById('simulationStatus');
+        var statusEl     = document.getElementById('status');
+        var loadingBar   = document.getElementById('loadingBar');
+        var designWarning = document.getElementById('designWarning');
+
+        /* ═══ Helpers ═══ */
+        function resetRandom() {
+            rngState = (parseInt(randomSeedEl.value) >>> 0) || 1;
+        }
+        function rand() {
+            rngState = (rngState + 0x6D2B79F5) >>> 0;
+            var t = rngState;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        }
+        function rc() { return MARBLE_COLORS[Math.floor(rand()*MARBLE_COLORS.length)]; }
+        function updStat() {
+            marbleStatus.textContent = spawnedCount + '/' + targetMarbleCount;
+            var batchSize = targetMarbleCount - spawnBatchStart;
+            var pct = batchSize > 0 ? (spawnedCount - spawnBatchStart) / batchSize * 100 : 0;
+            loadingBar.style.width = Math.min(100, pct) + '%';
+        }
+        function setLoadingProgress(show) {
+            statusEl.classList.toggle('is-loading', show);
+            if (!show) loadingBar.style.width = '0%';
+        }
+        function updateAddButtonLabel() {
+            addBtn.textContent = 'Add Batch (' + ballCountEl.value + ')';
+        }
+        function setSimulationStatus(text, state) {
+            simulationStatus.textContent = text;
+            statusEl.dataset.state = state;
+        }
+        function readPhysicsSettings() {
+            activePhysics.gravity = parseFloat(gravityEl.value);
+            activePhysics.marbleBounce = parseFloat(marbleBounceEl.value);
+            activePhysics.surfaceGrip = parseFloat(surfaceGripEl.value);
+            activePhysics.airDrag = parseFloat(airDragEl.value);
+            activePhysics.pegBounce = parseFloat(pegBounceEl.value);
+            activePhysics.simulationSpeed = parseFloat(simulationSpeedEl.value);
+            activePhysics.antiStuck = antiStuckEl.value === 'on';
+        }
+        function calcSim() {
+            var pct = parseInt(simWidthEl.value) / 100;
+            sim.width  = canvasW * pct;
+            sim.left   = (canvasW - sim.width) / 2;
+            sim.right  = sim.left + sim.width;
+            sim.centerX = canvasW / 2;
+        }
+
+        /* ═══ Destroy ═══ */
+        function destroyWorld() {
+            if (spawnTimer) { clearInterval(spawnTimer); spawnTimer = null; }
+            isDropping = false;
+            simulationPaused = false;
+            gateOpen = false;
+            spawnedCount = 0;
+            targetMarbleCount = 0;
+            spawnBatchStart = 0;
+            marbles = [];
+            binZoneInfo = null;
+            binStats = [];
+            renderFrame = 0;
+            spawnArea = null;
+            loadBtn.disabled = false;
+            loadBtn.textContent = 'Load Balls';
+            dropBtn.disabled = true;
+            dropBtn.textContent = 'Release';
+            addBtn.disabled = true;
+            updateAddButtonLabel();
+            freezeBtn.disabled = true;
+            freezeBtn.classList.remove('is-paused');
+            freezeBtn.textContent = 'Pause';
+            setSimulationStatus('Configure', 'ready');
+            setLoadingProgress(false);
+            updStat();
+
+            if (animId) { cancelAnimationFrame(animId); animId = null; }
+            if (runner) { Runner.stop(runner); runner = null; }
+            if (engine) { Composite.clear(engine.world, false); Engine.clear(engine); engine = null; }
+            if (canvas) { canvas.remove(); canvas = null; ctx = null; }
+            gateLeft = null; gateRight = null;
+        }
+
+        /* Scale the fixed-size canvas to fit the container (downscale only, keeps aspect). */
+        function fitCanvas() {
+            if (!canvas) return;
+            var s = Math.min(1, container.clientWidth / FIXED_W, container.clientHeight / FIXED_H);
+            canvas.style.transform = 'scale(' + s + ')';
+        }
+
+        /* ═══ Build World ═══ */
+        function buildWorld(loadBalls) {
+            if (previewTimer) {
+                clearTimeout(previewTimer);
+                previewTimer = null;
+            }
+            destroyWorld();
+            canvasW = FIXED_W;
+            canvasH = FIXED_H;
+            calcSim();
+            readPhysicsSettings();
+            activeMarbleRadius = parseInt(ballSizeEl.value);
+            activeShelfMode = shelfBehaviorEl.value;
+            resetRandom();
+
+            // Canvas
+            var dpr = window.devicePixelRatio || 1;
+            canvas = document.createElement('canvas');
+            canvas.width  = canvasW * dpr;
+            canvas.height = canvasH * dpr;
+            canvas.style.width  = canvasW + 'px';
+            canvas.style.height = canvasH + 'px';
+            container.appendChild(canvas);
+            ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            fitCanvas();
+
+            // Engine
+            engine = Engine.create({
+                gravity: { x: 0, y: activePhysics.gravity },
+                positionIterations: 8,
+                velocityIterations: 6,
+                // Manual Pause controls the simulation; automatic sleeping can strand
+                // slowly moving marbles on top of pegs.
+                enableSleeping: false
+            });
+            engine.timing.timeScale = activePhysics.simulationSpeed;
+            runner = Runner.create({ delta: 1000/60, isFixed: true });
+
+            var wt = 50;
+            var wOpts = { isStatic:true, render:{fillStyle:'#1a1a2e'}, friction:activePhysics.surfaceGrip, restitution:0 };
+            // Boundaries (full canvas)
+            Composite.add(engine.world, [
+                Bodies.rectangle(-wt/2, canvasH/2, wt, canvasH*3, wOpts),
+                Bodies.rectangle(canvasW+wt/2, canvasH/2, wt, canvasH*3, wOpts),
+                Bodies.rectangle(canvasW/2, canvasH+wt/2, canvasW+wt*2, wt, wOpts)
+            ]);
+
+            // ═══ RESERVOIR ═══
+            var resH = 55, resTop = 4;
+            var rwt = 14;
+            // Align the reservoir opening with the full-height board walls.
+            // This removes the small corner pockets that could trap marbles.
+            var resInnerW = sim.width - 20;
+            var resL = sim.centerX - resInnerW/2;
+            var resR = sim.centerX + resInnerW/2;
+            var resOpts = { isStatic:true, render:{fillStyle:'#0f3460'}, friction:activePhysics.surfaceGrip, restitution:0 };
+
+            // Left & right walls
+            Composite.add(engine.world, [
+                Bodies.rectangle(resL - rwt/2, resTop + resH/2, rwt, resH, resOpts),
+                Bodies.rectangle(resR + rwt/2, resTop + resH/2, rwt, resH, resOpts)
+            ]);
+
+            // ═══ SHELF / GATE ═══
+            var gateW = resInnerW;
+            var gateH = 12;
+            var gateY = resTop + resH + gateH / 2;
+            var shelfMode = activeShelfMode;
+            var gateOpts = {
+                isStatic:true, render:{fillStyle:'#e94560'}, friction:activePhysics.surfaceGrip, restitution:0, label:'gate'
+            };
+
+            if (shelfMode === 'split') {
+                gateLeft = Bodies.rectangle(resL + gateW/4, gateY, gateW/2, gateH, gateOpts);
+                gateRight = Bodies.rectangle(resL + gateW*3/4, gateY, gateW/2, gateH, gateOpts);
+                Composite.add(engine.world, [gateLeft, gateRight]);
+            } else {
+                gateLeft = Bodies.rectangle(resL + gateW/2, gateY, gateW, gateH, gateOpts);
+                gateRight = null;
+                Composite.add(engine.world, gateLeft);
+            }
+
+            // Spawn area = inside the reservoir, above the gate
+            var spawnMargin = parseInt(ballSizeEl.value) + 2;
+            spawnArea = {
+                left:  resL + spawnMargin,
+                right: resR - spawnMargin,
+                top:   resTop + spawnMargin,
+                bottom: gateY - spawnMargin
+            };
+
+            // ═══ PEGS ═══
+            var pLay = pegLayoutEl.value;
+            var pShp = pegShapeEl.value;
+            var pCnt = parseInt(pegRowsEl.value);
+            var pegsPerRow = parseInt(pegPerRowEl.value);
+
+            var pTop = gateY + 35;
+            var requestedBinH = canvasH * parseInt(binHeightEl.value) / 100;
+            var maxBinH = Math.max(30, canvasH - pTop - 35);
+            var bH = Math.min(Math.max(45, requestedBinH), maxBinH);
+            var bTop = canvasH - bH;
+            var pBot = bTop - 10;
+            var pH   = pBot - pTop;
+            var rSp  = pH / (pCnt + 1);
+            var pR   = parseInt(pegSizeEl.value);
+            var pD   = pR * 2;
+            var pM   = sim.left + 25;
+
+            for (var row = 0; row < pCnt; row++) {
+                var y = pTop + rSp * (row + 1);
+                var positions = [];
+                var usableW = sim.width - 50;
+
+                if (pLay === 'grid') {
+                    // Equal-count staggered grid: every row keeps the selected
+                    // count and spacing; alternate rows shift by half a cell.
+                    var odd = row % 2 === 1;
+                    var gridSpacing = usableW / (pegsPerRow + 0.5);
+                    for (var i = 0; i < pegsPerRow; i++) {
+                        var px = pM + gridSpacing * (i + (odd ? 1 : 0.5));
+                        positions.push(px);
+                    }
+                } else if (pLay === 'zigzag') {
+                    var odd2 = row % 2 === 1;
+                    var cnt = pegsPerRow;
+                    var sp2 = usableW / cnt;
+                    for (var j = 0; j < cnt; j++) {
+                        var zx = odd2
+                            ? pM + sp2*0.5 + sp2*(j*0.7)
+                            : sim.right - 25 - sp2*0.5 - sp2*(j*0.7);
+                        if (zx > sim.left + pR + 5 && zx < sim.right - pR - 5) positions.push(zx);
+                    }
+                } else {
+                    var rCnt = pegsPerRow;
+                    for (var k = 0; k < rCnt; k++) positions.push(pM + rand() * usableW);
+                }
+
+                var pegOpts = { isStatic:true, render:{fillStyle:'#4a6fa5'}, friction:activePhysics.surfaceGrip, restitution:activePhysics.pegBounce, label:'peg' };
+                for (var p = 0; p < positions.length; p++) {
+                    var pegX = positions[p];
+                    var shape = (pShp === 'random')
+                        ? PEG_SHAPES[Math.floor(rand()*PEG_SHAPES.length)]
+                        : pShp;
+                    var peg;
+                    if (shape === 'circle') {
+                        peg = Bodies.circle(pegX, y, pR, pegOpts);
+                    } else {
+                        peg = Bodies.rectangle(pegX, y, pD*1.2, pD*1.2, {
+                            isStatic:true, render:{fillStyle:'#4a6fa5'},
+                            friction:activePhysics.surfaceGrip, restitution:activePhysics.pegBounce,
+                            angle: Math.PI/4, label:'peg'
+                        });
+                    }
+                    Composite.add(engine.world, peg);
+                }
+
+                // A half peg is embedded in each board wall on every row.
+                var sidePegXs = [sim.left + 10, sim.right - 10];
+                var sidePegLabels = ['sidePegLeft', 'sidePegRight'];
+                for (var si = 0; si < 2; si++) {
+                    var sideShape = pShp === 'random'
+                        ? PEG_SHAPES[Math.floor(rand()*PEG_SHAPES.length)]
+                        : pShp;
+                    var sidePegOpts = {
+                        isStatic:true, render:{fillStyle:'#4a6fa5'},
+                        friction:activePhysics.surfaceGrip,
+                        restitution:activePhysics.pegBounce,
+                        label:sidePegLabels[si]
+                    };
+                    var sidePeg = sideShape === 'diamond'
+                        ? Bodies.rectangle(sidePegXs[si], y, pD*1.2, pD*1.2, {
+                            isStatic:true, render:{fillStyle:'#4a6fa5'},
+                            friction:activePhysics.surfaceGrip,
+                            restitution:activePhysics.pegBounce,
+                            angle:Math.PI/4, label:sidePegLabels[si]
+                        })
+                        : Bodies.circle(sidePegXs[si], y, pR, sidePegOpts);
+                    Composite.add(engine.world, sidePeg);
+                }
+            }
+
+            // ═══ BINS ═══
+            var bCnt  = parseInt(binCountEl.value);
+            var bTotW = sim.width - 20;
+            var bW    = bTotW / bCnt;
+            var bStX  = sim.left + 10;
+
+            binZoneInfo = { top: bTop, height: bH, width: bW, count: bCnt, startX: bStX };
+            var bOpts = { isStatic:true, render:{fillStyle:'#1a5276'}, friction:activePhysics.surfaceGrip, restitution:0 };
+
+            for (var bi = 0; bi <= bCnt; bi++) {
+                Composite.add(engine.world,
+                    Bodies.rectangle(bStX + bW*bi, bTop + bH/2, 3, bH, bOpts)
+                );
+            }
+
+            // Tall side walls overlap the canvas edges so there is no gap at the top.
+            var sideWallH = canvasH + wt;
+            var sideWallY = canvasH / 2;
+            var sideOpts = { isStatic:true, render:{fillStyle:'#1a5276'}, friction:activePhysics.surfaceGrip, restitution:0 };
+            var guardW = Math.max(18, activeMarbleRadius * 4);
+            var guardOpts = {
+                isStatic:true, render:{fillStyle:'#1a1a2e'},
+                friction:activePhysics.surfaceGrip, restitution:0, label:'safetyWall'
+            };
+            Composite.add(engine.world, [
+                Bodies.rectangle(bStX - guardW/2, sideWallY, guardW, sideWallH, guardOpts),
+                Bodies.rectangle(bStX + bW*bCnt + guardW/2, sideWallY, guardW, sideWallH, guardOpts),
+                Bodies.rectangle(bStX, sideWallY, 3, sideWallH, sideOpts),
+                Bodies.rectangle(bStX + bW * bCnt, sideWallY, 3, sideWallH, sideOpts)
+            ]);
+
+            // ═══ Start physics + render ═══
+            Runner.run(runner, engine);
+            startRenderLoop();
+
+            if (loadBalls) populateMarbles();
+        }
+
+        /* ═══ Render Loop ═══ */
+        function updateBinStats() {
+            if (!binZoneInfo) return;
+            binStats = new Array(binZoneInfo.count).fill(0);
+            for (var i = 0; i < marbles.length; i++) {
+                var marble = marbles[i];
+                if (marble.position.y < binZoneInfo.top) continue;
+                var index = Math.floor((marble.position.x - binZoneInfo.startX) / binZoneInfo.width);
+                if (index >= 0 && index < binStats.length) binStats[index]++;
+            }
+        }
+
+        function drawBinStats() {
+            if (!binZoneInfo || !binStats.length) return;
+            var total = 0, maxCount = 1;
+            for (var i = 0; i < binStats.length; i++) {
+                total += binStats[i];
+                if (binStats[i] > maxCount) maxCount = binStats[i];
+            }
+            for (var bi = 0; bi < binStats.length; bi++) {
+                var x = binZoneInfo.startX + binZoneInfo.width*bi;
+                var barH = (binStats[bi] / maxCount) * Math.max(0, binZoneInfo.height - 24);
+                ctx.fillStyle = 'rgba(41,121,255,0.10)';
+                ctx.fillRect(x + 3, canvasH - barH, Math.max(0, binZoneInfo.width - 6), barH);
+                ctx.fillStyle = 'rgba(186,202,226,0.68)';
+                ctx.font = '600 9px -apple-system,sans-serif';
+                ctx.textAlign = 'center';
+                var pct = total ? Math.round(binStats[bi] / total * 100) : 0;
+                ctx.fillText(binStats[bi] + ' · ' + pct + '%', x + binZoneInfo.width/2, binZoneInfo.top + 13);
+            }
+        }
+
+        function checkStuckMarbles() {
+            if (!activePhysics.antiStuck || !gateOpen || simulationPaused || !binZoneInfo) return;
+            for (var i = 0; i < marbles.length; i++) {
+                var marble = marbles[i];
+                if (marble.position.y >= binZoneInfo.top - activeMarbleRadius*2) continue;
+                var data = marble.plugin.marbleSorter || (marble.plugin.marbleSorter = {});
+                if (data.lastX === undefined) {
+                    data.lastX = marble.position.x;
+                    data.lastY = marble.position.y;
+                    data.stillChecks = 0;
+                    continue;
+                }
+                var dx = marble.position.x - data.lastX;
+                var dy = marble.position.y - data.lastY;
+                if (dx*dx + dy*dy < 0.25 && marble.speed < 0.12) data.stillChecks++;
+                else data.stillChecks = 0;
+                if (data.stillChecks >= 2) {
+                    Body.setVelocity(marble, {
+                        x: (rand() < 0.5 ? -1 : 1) * (0.45 + rand()*0.35),
+                        y: marble.velocity.y + 0.2
+                    });
+                    data.stillChecks = 0;
+                }
+                data.lastX = marble.position.x;
+                data.lastY = marble.position.y;
+            }
+        }
+
+        function startRenderLoop() {
+            (function frame() {
+                renderFrame++;
+                if (renderFrame % 6 === 0) updateBinStats();
+                if (renderFrame % 60 === 0) checkStuckMarbles();
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fillRect(0, 0, canvasW, canvasH);
+
+                // Grid
+                ctx.strokeStyle = 'rgba(74,111,165,0.04)';
+                ctx.lineWidth = 0.5;
+                for (var gx = 0; gx < canvasW; gx += 32) {
+                    ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,canvasH); ctx.stroke();
+                }
+                for (var gy = 0; gy < canvasH; gy += 32) {
+                    ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(canvasW,gy); ctx.stroke();
+                }
+
+                drawBinStats();
+
+                // Bin labels
+                if (binZoneInfo) {
+                    ctx.font = '600 10px -apple-system,sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = 'rgba(122,139,166,0.5)';
+                    for (var bl = 0; bl < binZoneInfo.count; bl++) {
+                        ctx.fillText(bl+1, binZoneInfo.startX + binZoneInfo.width*bl + binZoneInfo.width/2, canvasH - 8);
+                    }
+                }
+
+                // Bodies
+                var bodies = Composite.allBodies(engine.world);
+                for (var b = 0; b < bodies.length; b++) {
+                    var body = bodies[b], verts = body.vertices, fill = body.render.fillStyle;
+                    if (fill === '#1a1a2e') continue;
+
+                    var isLeftHalfPeg = body.label === 'sidePegLeft';
+                    var isRightHalfPeg = body.label === 'sidePegRight';
+                    if (isLeftHalfPeg || isRightHalfPeg) {
+                        ctx.save();
+                        ctx.beginPath();
+                        if (isLeftHalfPeg) {
+                            ctx.rect(body.position.x, 0, canvasW - body.position.x, canvasH);
+                        } else {
+                            ctx.rect(0, 0, body.position.x, canvasH);
+                        }
+                        ctx.clip();
+                    }
+
+                    ctx.beginPath();
+                    ctx.moveTo(verts[0].x, verts[0].y);
+                    for (var v = 1; v < verts.length; v++) ctx.lineTo(verts[v].x, verts[v].y);
+                    ctx.closePath();
+                    ctx.fillStyle = fill;
+                    ctx.fill();
+
+                    if (isLeftHalfPeg || isRightHalfPeg) ctx.restore();
+
+                    // Marble highlight
+                    if (body.label === 'marble' && body.circleRadius) {
+                        ctx.save();
+                        ctx.globalAlpha = 0.35;
+                        ctx.fillStyle = '#fff';
+                        ctx.beginPath();
+                        ctx.arc(
+                            body.position.x - body.circleRadius*0.25,
+                            body.position.y - body.circleRadius*0.3,
+                            body.circleRadius*0.3, 0, Math.PI*2
+                        );
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                }
+
+                animId = requestAnimationFrame(frame);
+            })();
+        }
+
+        /* ═══ Open Gate ═══ */
+        function openGate(cb) {
+            if (gateOpen || !gateLeft || !engine) return;
+            gateOpen = true;
+
+            var mode = activeShelfMode;
+
+            // The opening shelf is visual only once activated. This prevents a
+            // sliding gate from shoving marbles sideways into the reservoir walls.
+            gateLeft.isSensor = true;
+            if (gateRight) gateRight.isSensor = true;
+
+            function removeShelf() {
+                if (gateLeft) Composite.remove(engine.world, gateLeft);
+                if (gateRight) Composite.remove(engine.world, gateRight);
+                gateLeft = null;
+                gateRight = null;
+                if (cb) cb();
+            }
+
+            if (mode === 'disappear') {
+                removeShelf();
+                return;
+            }
+
+            var startLeftX = gateLeft.position.x;
+            var startRightX = gateRight ? gateRight.position.x : null;
+            var travel = mode === 'split'
+                ? (gateLeft.bounds.max.x - gateLeft.bounds.min.x) + 20
+                : sim.width + 40;
+            var leftDirection = mode === 'slide-right' ? 1 : -1;
+            var t0 = performance.now(), dur = 450;
+
+            function step(now) {
+                var t = Math.min((now - t0)/dur, 1);
+                var e = 1 - Math.pow(1-t, 3);
+                if (mode === 'split') {
+                    Body.setPosition(gateLeft, { x: startLeftX - travel*e, y: gateLeft.position.y });
+                    Body.setPosition(gateRight, { x: startRightX + travel*e, y: gateRight.position.y });
+                } else {
+                    Body.setPosition(gateLeft, { x: startLeftX + travel*leftDirection*e, y: gateLeft.position.y });
+                }
+                if (t < 1) requestAnimationFrame(step);
+                else removeShelf();
+            }
+            requestAnimationFrame(step);
+        }
+
+        function createMarble() {
+            if (!engine || !spawnArea) return;
+            var mx = spawnArea.left + rand() * (spawnArea.right - spawnArea.left);
+            var my = spawnArea.top + rand() * (spawnArea.bottom - spawnArea.top);
+            var marble = Bodies.circle(mx, my, activeMarbleRadius, {
+                density: 0.002,
+                restitution: activePhysics.marbleBounce,
+                friction: activePhysics.surfaceGrip,
+                frictionAir: activePhysics.airDrag,
+                render: { fillStyle: rc() },
+                label: 'marble',
+                sleepThreshold: 30
+            });
+            Body.setVelocity(marble, { x: (rand()-0.5)*0.8, y: (rand()-0.5)*0.5 });
+            marbles.push(marble);
+            Composite.add(engine.world, marble);
+            spawnedCount++;
+            updStat();
+        }
+
+        function spawnUntilTarget(onComplete) {
+            if (spawnTimer || !engine) return;
+            function finishSpawning() {
+                clearInterval(spawnTimer);
+                spawnTimer = null;
+                if (onComplete) onComplete();
+            }
+            spawnTimer = setInterval(function () {
+                if (spawnedCount >= targetMarbleCount || !engine) {
+                    finishSpawning();
+                    return;
+                }
+                // Create a batch per tick instead of one marble at a time.
+                // This keeps the UI responsive while loading large counts quickly.
+                for (var i = 0; i < 25 && spawnedCount < targetMarbleCount; i++) {
+                    createMarble();
+                }
+                if (spawnedCount >= targetMarbleCount) finishSpawning();
+            }, 0);
+        }
+
+        /* ═══ Populate marbles live into reservoir ═══ */
+        function populateMarbles() {
+            if (spawnTimer) { clearInterval(spawnTimer); spawnTimer = null; }
+            spawnedCount = 0;
+            spawnBatchStart = 0;
+            targetMarbleCount = parseInt(ballCountEl.value);
+            activeMarbleRadius = parseInt(ballSizeEl.value);
+            isDropping = false;
+            gateOpen = false;
+            updStat();
+            loadBtn.disabled = true;
+            loadBtn.textContent = 'Loading\u2026';
+            dropBtn.disabled = true;
+            dropBtn.textContent = 'Release';
+            addBtn.disabled = true;
+            freezeBtn.disabled = true;
+            setSimulationStatus('Loading', 'loading');
+            setLoadingProgress(true);
+
+            if (!engine || !spawnArea) return;
+
+            spawnUntilTarget(function () {
+                if (engine && !gateOpen) {
+                    loadBtn.disabled = false;
+                    loadBtn.textContent = 'Reload Balls';
+                    dropBtn.disabled = false;
+                    dropBtn.textContent = 'Release';
+                    setSimulationStatus('Ready', 'ready');
+                    setLoadingProgress(false);
+                }
+            });
+        }
+
+        function loadSelectedMarbles() {
+            buildWorld(true);
+        }
+
+        function scheduleLivePreview() {
+            // Never clear or jolt an active run. Design changes become a live
+            // preview whenever the board is empty, which is the setup phase.
+            if (spawnedCount > 0 || spawnTimer || gateOpen) {
+                loadBtn.textContent = 'Load New Design';
+                return;
+            }
+            clearTimeout(previewTimer);
+            previewTimer = setTimeout(function () {
+                previewTimer = null;
+                buildWorld(false);
+            }, 80);
+        }
+
+        /* ═══ Release — just opens the gate ═══ */
+        function releaseMarbles() {
+            if (gateOpen || isDropping) return;
+            isDropping = true;
+            dropBtn.disabled = true;
+            dropBtn.textContent = 'Releasing\u2026';
+            setSimulationStatus('Releasing', 'running');
+
+            // Wake every marble before the shelf opens.
+            for (var i = 0; i < marbles.length; i++) {
+                Sleeping.set(marbles[i], false);
+            }
+
+            openGate(function () {
+                isDropping = false;
+                dropBtn.disabled = true;
+                dropBtn.textContent = 'Released \u2713';
+                addBtn.disabled = false;
+                freezeBtn.disabled = false;
+                setSimulationStatus('Running', 'running');
+            });
+        }
+
+        /* ═══ Add another batch without resetting the board ═══ */
+        function dropMoreMarbles() {
+            if (!engine || !gateOpen || spawnTimer) return;
+
+            if (simulationPaused) toggleFreeze();
+
+            spawnBatchStart = spawnedCount;
+            targetMarbleCount += parseInt(ballCountEl.value);
+            updStat();
+            addBtn.disabled = true;
+            addBtn.textContent = 'Adding\u2026';
+            freezeBtn.disabled = true;
+            setSimulationStatus('Adding marbles', 'running');
+            setLoadingProgress(true);
+
+            spawnUntilTarget(function () {
+                if (!engine) return;
+                addBtn.disabled = false;
+                updateAddButtonLabel();
+                freezeBtn.disabled = false;
+                setSimulationStatus('Running', 'running');
+                setLoadingProgress(false);
+            });
+        }
+
+        /* ═══ Manual physics pause ═══ */
+        function toggleFreeze() {
+            if (!engine || !runner || !gateOpen) return;
+            if (simulationPaused) {
+                Runner.run(runner, engine);
+                simulationPaused = false;
+                freezeBtn.classList.remove('is-paused');
+                freezeBtn.textContent = 'Pause';
+                setSimulationStatus('Running', 'running');
+            } else {
+                Runner.stop(runner);
+                simulationPaused = true;
+                freezeBtn.classList.add('is-paused');
+                freezeBtn.textContent = 'Resume';
+                setSimulationStatus('Paused', 'paused');
+            }
+        }
+
+        function syncControlLabels() {
+            ballCountVal.textContent = ballCountEl.value;
+            ballSizeVal.textContent = ballSizeEl.value;
+            binCountVal.textContent = binCountEl.value;
+            binHeightVal.textContent = binHeightEl.value + '%';
+            pegRowsVal.textContent = pegRowsEl.value;
+            pegPerRowVal.textContent = pegPerRowEl.value;
+            pegSizeVal.textContent = pegSizeEl.value;
+            simWidthVal.textContent = simWidthEl.value + '%';
+            gravityVal.textContent = parseFloat(gravityEl.value).toFixed(1) + '\u00d7';
+            marbleBounceVal.textContent = Math.round(parseFloat(marbleBounceEl.value)*100) + '%';
+            surfaceGripVal.textContent = Math.round(parseFloat(surfaceGripEl.value)*100) + '%';
+            airDragVal.textContent = (parseFloat(airDragEl.value)*100).toFixed(1) + '%';
+            pegBounceVal.textContent = Math.round(parseFloat(pegBounceEl.value)*100) + '%';
+            var speed = parseFloat(simulationSpeedEl.value);
+            simulationSpeedVal.textContent = (speed % 0.5 === 0 ? speed.toFixed(1) : speed.toFixed(2)) + '\u00d7';
+            updateAddButtonLabel();
+        }
+
+        function applyPreset(name) {
+            var presets = {
+                classic: [500,4,10,22,12,13,5,65,1,0.2,0.3,0.01,0.55,1,'circle','grid','split'],
+                dense: [2000,4,8,26,20,30,6,100,1,0.15,0.4,0.01,0.6,1,'circle','grid','split'],
+                'high-bounce': [1000,4,10,24,14,17,6,70,1.1,0.65,0.15,0.005,0.9,1,'circle','grid','disappear'],
+                'slow-motion': [750,5,9,28,12,15,6,65,0.6,0.25,0.45,0.015,0.5,0.5,'circle','grid','split']
+            };
+            var p = presets[name];
+            if (!p) return;
+            var controls = [ballCountEl,ballSizeEl,binCountEl,binHeightEl,pegRowsEl,pegPerRowEl,pegSizeEl,simWidthEl,gravityEl,marbleBounceEl,surfaceGripEl,airDragEl,pegBounceEl,simulationSpeedEl,pegShapeEl,pegLayoutEl,shelfBehaviorEl];
+            for (var i = 0; i < controls.length; i++) controls[i].value = p[i];
+            antiStuckEl.value = 'on';
+            syncControlLabels();
+            validateDesign();
+            scheduleLivePreview();
+        }
+
+        function validateDesign() {
+            var width = FIXED_W;
+            var height = FIXED_H;
+            var boardW = width * parseInt(simWidthEl.value)/100;
+            var horizontalSpacing = Math.max(1, boardW - 50) / (parseInt(pegPerRowEl.value) + 0.5);
+            var radiusTotal = parseInt(pegSizeEl.value) + parseInt(ballSizeEl.value);
+            var binH = height * parseInt(binHeightEl.value)/100;
+            var verticalSpace = Math.max(1, height - binH - 110) / (parseInt(pegRowsEl.value) + 1);
+            var warnings = [];
+            if (horizontalSpacing < radiusTotal*2 + 2 || verticalSpace < radiusTotal*2 + 2) {
+                warnings.push('Peg and marble sizes leave very narrow paths. Reduce peg size/rows or increase board width.');
+            }
+            var reservoirArea = Math.max(1, (boardW - 20) * 55);
+            var marbleArea = parseInt(ballCountEl.value) * Math.PI * Math.pow(parseInt(ballSizeEl.value), 2);
+            if (marbleArea > reservoirArea * 1.4) {
+                warnings.push('This batch starts highly compressed; loading fewer or smaller marbles will be smoother.');
+            }
+            designWarning.textContent = warnings.join(' ');
+            designWarning.classList.toggle('is-visible', warnings.length > 0);
+        }
+
+        function markCustomPreset() {
+            if (presetSelectEl.value !== 'custom') presetSelectEl.value = 'custom';
+            validateDesign();
+        }
+
+        function setCompactMode(enabled) {
+            app.classList.toggle('compact-mode', enabled);
+            compactBtn.textContent = enabled ? 'Show Controls' : 'Focus View';
+        }
+
+        /* ═══ Events ═══ */
+        ballCountEl.addEventListener('input', function () {
+            ballCountVal.textContent = ballCountEl.value;
+            if (!spawnTimer) updateAddButtonLabel();
+        });
+        ballSizeEl.addEventListener('input', function () {
+            ballSizeVal.textContent = ballSizeEl.value;
+        });
+        binCountEl.addEventListener('input', function () {
+            binCountVal.textContent = binCountEl.value;
+            scheduleLivePreview();
+        });
+        binHeightEl.addEventListener('input', function () {
+            binHeightVal.textContent = binHeightEl.value + '%';
+            scheduleLivePreview();
+        });
+        pegRowsEl.addEventListener('input', function () {
+            pegRowsVal.textContent = pegRowsEl.value;
+            scheduleLivePreview();
+        });
+        pegPerRowEl.addEventListener('input', function () {
+            pegPerRowVal.textContent = pegPerRowEl.value;
+            scheduleLivePreview();
+        });
+        pegSizeEl.addEventListener('input', function () {
+            pegSizeVal.textContent = pegSizeEl.value;
+            scheduleLivePreview();
+        });
+        simWidthEl.addEventListener('input', function () {
+            simWidthVal.textContent = simWidthEl.value + '%';
+            scheduleLivePreview();
+        });
+        gravityEl.addEventListener('input', function () {
+            gravityVal.textContent = parseFloat(gravityEl.value).toFixed(1) + '\u00d7';
+        });
+        marbleBounceEl.addEventListener('input', function () {
+            marbleBounceVal.textContent = Math.round(parseFloat(marbleBounceEl.value) * 100) + '%';
+        });
+        surfaceGripEl.addEventListener('input', function () {
+            surfaceGripVal.textContent = Math.round(parseFloat(surfaceGripEl.value) * 100) + '%';
+        });
+        airDragEl.addEventListener('input', function () {
+            airDragVal.textContent = (parseFloat(airDragEl.value) * 100).toFixed(1) + '%';
+        });
+        pegBounceEl.addEventListener('input', function () {
+            pegBounceVal.textContent = Math.round(parseFloat(pegBounceEl.value) * 100) + '%';
+        });
+        simulationSpeedEl.addEventListener('input', function () {
+            var speed = parseFloat(simulationSpeedEl.value);
+            simulationSpeedVal.textContent = (speed % 0.5 === 0 ? speed.toFixed(1) : speed.toFixed(2)) + '\u00d7';
+        });
+        pegShapeEl.addEventListener('change', scheduleLivePreview);
+        pegLayoutEl.addEventListener('change', scheduleLivePreview);
+        shelfBehaviorEl.addEventListener('change', scheduleLivePreview);
+        randomSeedEl.addEventListener('input', scheduleLivePreview);
+        presetSelectEl.addEventListener('change', function () {
+            applyPreset(presetSelectEl.value);
+        });
+
+        var customControls = [
+            ballCountEl, ballSizeEl, randomSeedEl, binCountEl, binHeightEl,
+            pegRowsEl, pegPerRowEl, pegSizeEl, simWidthEl, gravityEl,
+            marbleBounceEl, surfaceGripEl, airDragEl, pegBounceEl,
+            simulationSpeedEl, antiStuckEl, pegShapeEl, pegLayoutEl,
+            shelfBehaviorEl
+        ];
+        for (var ci = 0; ci < customControls.length; ci++) {
+            customControls[ci].addEventListener('input', markCustomPreset);
+            customControls[ci].addEventListener('change', markCustomPreset);
+        }
+
+        var controlSections = document.querySelectorAll('.control-section');
+        for (var si = 0; si < controlSections.length; si++) {
+            controlSections[si].addEventListener('toggle', function () {
+                if (!this.open) return;
+                for (var oi = 0; oi < controlSections.length; oi++) {
+                    if (controlSections[oi] !== this) controlSections[oi].open = false;
+                }
+            });
+        }
+
+        loadBtn.addEventListener('click', loadSelectedMarbles);
+        dropBtn.addEventListener('click', releaseMarbles);
+        addBtn.addEventListener('click', dropMoreMarbles);
+        freezeBtn.addEventListener('click', toggleFreeze);
+        resetBtn.addEventListener('click', function () { buildWorld(false); });
+        compactBtn.addEventListener('click', function () { setCompactMode(true); });
+        showControlsBtn.addEventListener('click', function () { setCompactMode(false); });
+        window.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && app.classList.contains('compact-mode')) setCompactMode(false);
+        });
+
+        var resizeTimer;
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            // Fixed-size canvas: just rescale to fit — no need to rebuild the simulation.
+            resizeTimer = setTimeout(fitCanvas, 120);
+        });
+
+        /* ═══ Init ═══ */
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                validateDesign();
+                buildWorld(false);
+            });
+        });
+
+    })();
+    </script>
+</body>
+</html>
